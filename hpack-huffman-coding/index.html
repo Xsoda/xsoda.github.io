@@ -1,0 +1,827 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>HPACK中的霍夫曼编码 &mdash; Xsoda&#39;s Blog  documentation</title>
+    
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="author" title="About these documents" href="../about/" />
+    <link rel="top" title="Xsoda&#39;s Blog  documentation" href="../" />
+  
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  
+  <link rel="alternate" type="application/atom+xml"  href="../blog/atom.xml" title="Blog">
+  
+  
+  <style type="text/css">
+    ul.ablog-archive {list-style: none; overflow: auto; margin-left: 0px}
+    ul.ablog-archive li {float: left; margin-right: 5px; font-size: 80%}
+    ul.postlist a {font-style: italic;}
+    ul.postlist-style-disc {list-style-type: disc;}
+    ul.postlist-style-none {list-style-type: none;}
+    ul.postlist-style-circle {list-style-type: circle;}
+  </style>
+
+  </head>
+  <body role="document">  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="hpack">
+<h1>HPACK中的霍夫曼编码<a class="headerlink" href="#hpack" title="Permalink to this headline">¶</a></h1>
+<p><code class="docutils literal"><span class="pre">HTTP2.0</span></code><a class="footnote-reference" href="#http2-0" id="id1">[2]</a>中头部采用了二进制格式，具体编码在<code class="docutils literal"><span class="pre">HPACK</span></code><a class="footnote-reference" href="#id9" id="id2">[3]</a>也已经详细解释了。
+<code class="docutils literal"><span class="pre">HPACK</span></code>中对于字符串使用了霍夫曼编码<a class="footnote-reference" href="#huffman" id="id3">[4]</a>来让传输更有效率，但是对于霍夫曼的解码过程一直没想
+到如何仅仅使用查表的方法来进行。在看过一些论文和博客之后勉强想到了一个简单的可能不是很有效率的查表办法。</p>
+<p>下图是简单的霍夫曼编码树的展示，简洁说明5个符号的编码构造过程：</p>
+<blockquote>
+<div><div class="figure align-center" id="id10">
+<img alt="../_images/huffman_tree.png" src="../_images/huffman_tree.png" />
+<p class="caption"><span class="caption-text">简单的霍夫曼编码树</span></p>
+</div>
+</div></blockquote>
+<p>从编码树中我们可以获取符号的编码表：</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="24%" />
+<col width="39%" />
+<col width="36%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Symbol</th>
+<th class="head">code as bits</th>
+<th class="head">len in bits</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td>A</td>
+<td>00</td>
+<td>2</td>
+</tr>
+<tr class="row-odd"><td>B</td>
+<td>01</td>
+<td>2</td>
+</tr>
+<tr class="row-even"><td>C</td>
+<td>10</td>
+<td>2</td>
+</tr>
+<tr class="row-odd"><td>D</td>
+<td>110</td>
+<td>3</td>
+</tr>
+<tr class="row-even"><td>E</td>
+<td>111</td>
+<td>3</td>
+</tr>
+</tbody>
+</table>
+<p>霍夫曼解码的过程常规仍是构造和编码时一样的霍夫曼树，如图1，然后从根节点开始一次读取每一个<code class="docutils literal"><span class="pre">bit</span></code>为
+<code class="docutils literal"><span class="pre">0</span></code>时向<strong>左孩子</strong>行进，为<code class="docutils literal"><span class="pre">1</span></code>时向<strong>右孩子</strong>行进，直到到达叶子节点，获取解码后的符号。
+这是解码一个符号的步骤，缺点是在<code class="docutils literal"><span class="pre">HAPCK</span></code>中，各个符号的编码已经知晓了，这样可以根据编码去反向构造霍夫曼树，
+但是需要大量的分配内存及我们仅仅想使用它的解码功能，并且当在程序中解码树根节点不方便保存及释放。</p>
+<p>这里我考虑使用一个类似与有限自动机的方法来实现解码，首先将每一个编码按4bit分成若干组，<code class="docutils literal"><span class="pre">HPACK</span></code>中最长的编码
+长度是30，每一个编码最多能分成8组。分好后，将所有组编码组成一颗16叉树，并且让孩子节点的索引值与分组的值相等。这样的话
+可以每次读取4个比特，然后得到相对应的孩子节点，如果该节点指向了一个符号，则得到了解码结果。大概过程为</p>
+<blockquote>
+<div><ol class="arabic simple">
+<li>设置当前节点为根节点</li>
+<li>读取4比特存入c</li>
+<li>以c的值最为孩子节点的索引获取孩子节点</li>
+<li>判断孩子节点信息<ol class="arabic">
+<li>节点对应了一个有效符号A，跳转到(1)，继续解析下一个符号</li>
+<li>节点不对应任何符号，跳转到(2)</li>
+</ol>
+</li>
+</ol>
+</div></blockquote>
+<p>例如，<code class="docutils literal"><span class="pre">HPACK</span></code>中<code class="docutils literal"><span class="pre">a</span></code>的编码为<code class="docutils literal"><span class="pre">00011</span></code>，我们先分割为<code class="docutils literal"><span class="pre">0001</span></code>，<code class="docutils literal"><span class="pre">1xxx</span></code>两组，
+构造解码树时按照组中每一个值是孩子节点的位置索引，而最后一个值指向终点，代表一个解码后的符号。<code class="docutils literal"><span class="pre">1xxx</span></code>这类的表示多个
+孩子节点对应同一个解码符号，比如下图中真实表示的几个符号：</p>
+<div class="figure align-center" id="id11">
+<img alt="../_images/huff_decode_state.png" src="../_images/huff_decode_state.png" />
+<p class="caption"><span class="caption-text">部分解码树孩子索引示意图，彩色的位代表了完整字符的位编码</span></p>
+</div>
+<div class="section" id="id4">
+<h2>解码树的生成<a class="headerlink" href="#id4" title="Permalink to this headline">¶</a></h2>
+<p>为了生成上图中解码树，需要先对编码表进行预处理，我的方法是</p>
+<blockquote>
+<div><ol class="arabic">
+<li><p class="first">将所有编码分为4位一组，最长编码30位，所以最长8组</p>
+<div class="highlight-c"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19</pre></div></td><td class="code"><div class="highlight"><pre>    <span class="kt">unsigned</span> <span class="kt">char</span> <span class="n">split_bits</span><span class="p">[</span><span class="mi">256</span><span class="p">][</span><span class="mi">8</span><span class="p">];</span>
+    <span class="cm">/* split huffman code to n * 4 bits */</span>
+    <span class="k">for</span> <span class="p">(</span><span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="mi">256</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+        <span class="kt">unsigned</span> <span class="kt">int</span> <span class="n">code</span> <span class="o">=</span> <span class="n">huff_sym</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">code</span><span class="p">;</span>
+        <span class="kt">int</span> <span class="n">bits</span> <span class="o">=</span> <span class="n">huff_sym</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">bits</span><span class="p">;</span>
+
+        <span class="k">for</span> <span class="p">(</span><span class="n">j</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">j</span> <span class="o">&lt;</span> <span class="n">bits</span> <span class="o">/</span> <span class="mi">4</span><span class="p">;</span> <span class="n">j</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+            <span class="kt">unsigned</span> <span class="kt">int</span> <span class="n">four_bits</span> <span class="o">=</span> <span class="n">code</span><span class="p">;</span>
+            <span class="n">four_bits</span> <span class="o">&lt;&lt;=</span> <span class="mi">32</span> <span class="o">-</span> <span class="n">bits</span> <span class="o">+</span> <span class="n">j</span> <span class="o">*</span> <span class="mi">4</span><span class="p">;</span>
+            <span class="n">four_bits</span> <span class="o">&gt;&gt;=</span> <span class="mi">28</span><span class="p">;</span>
+            <span class="n">split_bits</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="kt">unsigned</span> <span class="kt">char</span><span class="p">)</span><span class="n">four_bits</span><span class="p">;</span>
+        <span class="p">}</span>
+
+        <span class="k">if</span> <span class="p">(</span><span class="n">bits</span> <span class="o">%</span> <span class="mi">4</span><span class="p">)</span> <span class="p">{</span>
+            <span class="kt">unsigned</span> <span class="kt">int</span> <span class="n">remain_bits</span> <span class="o">=</span> <span class="n">code</span><span class="p">;</span>
+            <span class="n">remain_bits</span> <span class="o">&amp;=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="p">(</span><span class="n">bits</span> <span class="o">%</span> <span class="mi">4</span><span class="p">))</span> <span class="o">-</span> <span class="mi">1</span><span class="p">;</span>
+            <span class="n">split_bits</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">bits</span> <span class="o">/</span> <span class="mi">4</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="kt">unsigned</span> <span class="kt">char</span><span class="p">)</span><span class="n">remain_bits</span><span class="p">;</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+</pre></div>
+</td></tr></table></div>
+</li>
+<li><p class="first">根据分割的位组构建解码树</p>
+<div class="highlight-c"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47</pre></div></td><td class="code"><div class="highlight"><pre><span class="k">typedef</span> <span class="k">struct</span> <span class="n">_huff_decode_node_s</span> <span class="p">{</span>
+    <span class="kt">int</span> <span class="n">idx</span><span class="p">;</span>
+    <span class="kt">char</span> <span class="n">ending</span><span class="p">;</span>
+    <span class="kt">unsigned</span> <span class="kt">char</span> <span class="n">sym</span><span class="p">;</span>
+    <span class="k">struct</span> <span class="n">_huff_decode_node_s</span> <span class="o">*</span><span class="n">child</span><span class="p">[</span><span class="mi">16</span><span class="p">];</span>
+<span class="p">}</span> <span class="n">huff_decode_node_t</span><span class="p">;</span>
+
+<span class="n">huff_decode_node_t</span> <span class="o">*</span><span class="nf">build_huff_decode_tree</span><span class="p">(</span><span class="kt">unsigned</span> <span class="kt">char</span> <span class="n">split_bits</span><span class="p">[</span><span class="mi">256</span><span class="p">][</span><span class="mi">8</span><span class="p">])</span> <span class="p">{</span>
+    <span class="kt">int</span> <span class="n">i</span><span class="p">,</span> <span class="n">j</span><span class="p">;</span>
+    <span class="n">huff_decode_node_t</span> <span class="o">*</span><span class="n">root</span><span class="p">;</span>
+    <span class="n">root</span> <span class="o">=</span> <span class="p">(</span><span class="n">huff_decode_node_t</span> <span class="o">*</span><span class="p">)</span><span class="n">malloc</span><span class="p">(</span><span class="k">sizeof</span><span class="p">(</span><span class="n">huff_decode_node_t</span><span class="p">));</span>
+    <span class="n">memset</span><span class="p">(</span><span class="n">root</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">huff_decode_node_t</span><span class="p">));</span>
+
+    <span class="k">for</span> <span class="p">(</span><span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="mi">256</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+        <span class="kt">int</span> <span class="n">idx</span><span class="p">;</span>
+        <span class="n">huff_decode_node_t</span> <span class="o">*</span><span class="n">node</span><span class="p">;</span>
+        <span class="n">huff_decode_node_t</span> <span class="o">*</span><span class="n">tmp</span> <span class="o">=</span> <span class="n">root</span><span class="p">;</span>
+        <span class="k">for</span> <span class="p">(</span><span class="n">j</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">j</span> <span class="o">&lt;</span> <span class="n">huff_sym</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">bits</span> <span class="o">/</span> <span class="mi">4</span><span class="p">;</span> <span class="n">j</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="n">split_bits</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">j</span><span class="p">];</span>
+            <span class="n">node</span> <span class="o">=</span> <span class="n">tmp</span><span class="p">;</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">node</span><span class="o">-&gt;</span><span class="n">child</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">==</span> <span class="nb">NULL</span><span class="p">)</span> <span class="p">{</span>
+                <span class="n">node</span><span class="o">-&gt;</span><span class="n">child</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="n">huff_decode_node_t</span> <span class="o">*</span><span class="p">)</span><span class="n">malloc</span><span class="p">(</span><span class="k">sizeof</span><span class="p">(</span><span class="n">huff_decode_node_t</span><span class="p">));</span>
+                <span class="n">memset</span><span class="p">(</span><span class="n">node</span><span class="o">-&gt;</span><span class="n">child</span><span class="p">[</span><span class="n">idx</span><span class="p">],</span> <span class="mi">0</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">huff_decode_node_t</span><span class="p">));</span>
+            <span class="p">}</span>
+            <span class="n">tmp</span> <span class="o">=</span> <span class="n">node</span><span class="o">-&gt;</span><span class="n">child</span><span class="p">[</span><span class="n">idx</span><span class="p">];</span>
+        <span class="p">}</span>
+
+        <span class="k">if</span> <span class="p">(</span><span class="n">huff_sym</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">bits</span> <span class="o">%</span> <span class="mi">4</span><span class="p">)</span> <span class="p">{</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="n">split_bits</span><span class="p">[</span><span class="n">i</span><span class="p">][</span><span class="n">j</span><span class="p">];</span>
+            <span class="n">node</span> <span class="o">=</span> <span class="n">tmp</span><span class="p">;</span>
+            <span class="n">tmp</span> <span class="o">=</span> <span class="p">(</span><span class="n">huff_decode_node_t</span> <span class="o">*</span><span class="p">)</span><span class="n">malloc</span><span class="p">(</span><span class="k">sizeof</span><span class="p">(</span><span class="n">huff_decode_node_t</span><span class="p">));</span>
+            <span class="n">memset</span><span class="p">(</span><span class="n">tmp</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">huff_decode_node_t</span><span class="p">));</span>
+            <span class="n">tmp</span><span class="o">-&gt;</span><span class="n">ending</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+            <span class="n">tmp</span><span class="o">-&gt;</span><span class="n">sym</span> <span class="o">=</span> <span class="n">i</span><span class="p">;</span>
+
+            <span class="n">idx</span> <span class="o">&lt;&lt;=</span> <span class="p">(</span><span class="mi">4</span> <span class="o">-</span> <span class="n">huff_sym</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">bits</span> <span class="o">%</span> <span class="mi">4</span><span class="p">);</span>
+            <span class="k">for</span> <span class="p">(</span><span class="n">j</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">j</span> <span class="o">&lt;</span> <span class="p">(</span><span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="p">(</span><span class="mi">4</span> <span class="o">-</span> <span class="n">huff_sym</span><span class="p">[</span><span class="n">i</span><span class="p">].</span><span class="n">bits</span> <span class="o">%</span> <span class="mi">4</span><span class="p">));</span> <span class="n">j</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+                <span class="n">assert</span><span class="p">(</span><span class="n">node</span><span class="o">-&gt;</span><span class="n">child</span><span class="p">[</span><span class="n">idx</span> <span class="o">+</span> <span class="n">j</span><span class="p">]</span> <span class="o">==</span> <span class="nb">NULL</span><span class="p">);</span>
+                <span class="n">node</span><span class="o">-&gt;</span><span class="n">child</span><span class="p">[</span><span class="n">idx</span> <span class="o">+</span> <span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">tmp</span><span class="p">;</span>
+            <span class="p">}</span>
+        <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+            <span class="n">tmp</span><span class="o">-&gt;</span><span class="n">ending</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
+            <span class="n">tmp</span><span class="o">-&gt;</span><span class="n">sym</span> <span class="o">=</span> <span class="n">i</span><span class="p">;</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="n">root</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</td></tr></table></div>
+</li>
+<li><p class="first">为解码树的节点建立编号</p>
+<div class="highlight-c"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10</pre></div></td><td class="code"><div class="highlight"><pre><span class="kt">int</span> <span class="nf">index_decode_node</span><span class="p">(</span><span class="n">huff_decode_node_t</span> <span class="o">*</span><span class="n">node</span><span class="p">,</span> <span class="kt">int</span> <span class="n">idx</span><span class="p">)</span> <span class="p">{</span>
+    <span class="kt">int</span> <span class="n">i</span><span class="p">;</span>
+    <span class="n">node</span><span class="o">-&gt;</span><span class="n">idx</span> <span class="o">=</span> <span class="n">idx</span><span class="o">++</span><span class="p">;</span>
+    <span class="k">for</span> <span class="p">(</span><span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="mi">16</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">node</span><span class="o">-&gt;</span><span class="n">child</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">&amp;&amp;</span> <span class="o">!</span><span class="n">node</span><span class="o">-&gt;</span><span class="n">child</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">-&gt;</span><span class="n">ending</span><span class="p">)</span> <span class="p">{</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="n">index_decode_node</span><span class="p">(</span><span class="n">node</span><span class="o">-&gt;</span><span class="n">child</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">idx</span><span class="p">);</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+    <span class="k">return</span> <span class="n">idx</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</td></tr></table></div>
+</li>
+</ol>
+</div></blockquote>
+<p>经过这些步骤后已经建立好一个解码树了，树中每个节点有16个孩子。这样我们解码时就可以根据
+4位组的值为孩子节点索引，从根节点开始行进解码。当解码完一个字符后，重新回到根节点，解码
+下一个字符。</p>
+<p>解码树的节点建立编号是为了下一步将解码树转换为状态机的形式，固定地编码在数据区。免去
+每次解码都要构建解码树的麻烦。</p>
+</div>
+<div class="section" id="id5">
+<h2>转换为状态表<a class="headerlink" href="#id5" title="Permalink to this headline">¶</a></h2>
+<p>先定义如下的解码状态，先前的每个编码树节点将会转换16个状态，其实编码过的节点有54个。
+最大的编号为0x35。所以完全可以将<code class="docutils literal"><span class="pre">ending</span></code>和<code class="docutils literal"><span class="pre">next</span></code>合并为一个字节，节省
+三分之一的空间。然后对所有的节点进行序号编排，这个序号作为状态转移的依据。</p>
+<blockquote>
+<div><div class="highlight-c"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19</pre></div></td><td class="code"><div class="highlight"><pre>
+<span class="k">typedef</span> <span class="k">struct</span> <span class="n">_huff_decode_state_s</span> <span class="p">{</span>
+    <span class="kt">unsigned</span> <span class="kt">char</span> <span class="n">next</span><span class="p">;</span>
+    <span class="kt">unsigned</span> <span class="kt">char</span> <span class="n">sym</span><span class="p">;</span>
+    <span class="kt">unsigned</span> <span class="kt">char</span> <span class="n">ending</span><span class="p">;</span>
+<span class="p">}</span> <span class="n">huff_decode_state_t</span><span class="p">;</span>
+
+<span class="kt">void</span> <span class="nf">convert_node_to_state_table</span><span class="p">(</span><span class="n">huff_decode_node_t</span> <span class="o">*</span><span class="n">node</span><span class="p">,</span> <span class="n">huff_decode_state_t</span> <span class="n">state</span><span class="p">[</span><span class="mi">55</span><span class="p">][</span><span class="mi">16</span><span class="p">])</span> <span class="p">{</span>
+    <span class="kt">int</span> <span class="n">i</span><span class="p">;</span>
+    <span class="kt">int</span> <span class="n">idx</span> <span class="o">=</span> <span class="n">node</span><span class="o">-&gt;</span><span class="n">idx</span><span class="p">;</span>
+    <span class="k">for</span> <span class="p">(</span><span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="mi">16</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">node</span><span class="o">-&gt;</span><span class="n">child</span><span class="p">[</span><span class="n">i</span><span class="p">])</span> <span class="p">{</span>
+            <span class="n">state</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="n">i</span><span class="p">].</span><span class="n">ending</span> <span class="o">=</span> <span class="n">node</span><span class="o">-&gt;</span><span class="n">child</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">-&gt;</span><span class="n">ending</span><span class="p">;</span>
+            <span class="n">state</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="n">i</span><span class="p">].</span><span class="n">next</span> <span class="o">=</span> <span class="n">node</span><span class="o">-&gt;</span><span class="n">child</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">-&gt;</span><span class="n">idx</span><span class="p">;</span>
+            <span class="n">state</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="n">i</span><span class="p">].</span><span class="n">sym</span> <span class="o">=</span> <span class="n">node</span><span class="o">-&gt;</span><span class="n">child</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">-&gt;</span><span class="n">sym</span><span class="p">;</span>
+            <span class="n">convert_node_to_state_table</span><span class="p">(</span><span class="n">node</span><span class="o">-&gt;</span><span class="n">child</span><span class="p">[</span><span class="n">i</span><span class="p">],</span> <span class="n">state</span><span class="p">);</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</td></tr></table></div>
+</div></blockquote>
+<p>完成后将<code class="docutils literal"><span class="pre">state[55][16]</span></code>的内容打印出来，就组成了静态的解码状态表。完整的表见源代码<a class="footnote-reference" href="#source" id="id6">[1]</a>。</p>
+<blockquote>
+<div><div class="highlight-c"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21</pre></div></td><td class="code"><div class="highlight"><pre><span class="n">huff_decode_state_t</span> <span class="n">decode_state</span><span class="p">[][</span><span class="mi">16</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="p">{</span>
+        <span class="p">{</span> <span class="mh">0x01</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x00</span> <span class="p">},</span> <span class="p">{</span> <span class="mh">0x02</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x00</span> <span class="p">},</span>
+        <span class="p">{</span> <span class="mh">0x03</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x00</span> <span class="p">},</span> <span class="p">{</span> <span class="mh">0x04</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x00</span> <span class="p">},</span>
+        <span class="p">{</span> <span class="mh">0x05</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x00</span> <span class="p">},</span> <span class="p">{</span> <span class="mh">0x06</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x00</span> <span class="p">},</span>
+        <span class="p">{</span> <span class="mh">0x07</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x00</span> <span class="p">},</span> <span class="p">{</span> <span class="mh">0x08</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x00</span> <span class="p">},</span>
+        <span class="p">{</span> <span class="mh">0x09</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x00</span> <span class="p">},</span> <span class="p">{</span> <span class="mh">0x0a</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x00</span> <span class="p">},</span>
+        <span class="p">{</span> <span class="mh">0x0b</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x00</span> <span class="p">},</span> <span class="p">{</span> <span class="mh">0x0c</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x00</span> <span class="p">},</span>
+        <span class="p">{</span> <span class="mh">0x0d</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x00</span> <span class="p">},</span> <span class="p">{</span> <span class="mh">0x0e</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x00</span> <span class="p">},</span>
+        <span class="p">{</span> <span class="mh">0x0f</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x00</span> <span class="p">},</span> <span class="p">{</span> <span class="mh">0x10</span><span class="p">,</span> <span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x00</span> <span class="p">},</span>
+    <span class="p">},</span>
+    <span class="p">{</span>
+        <span class="p">{</span> <span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x30</span><span class="p">,</span> <span class="mh">0x01</span> <span class="p">},</span> <span class="p">{</span> <span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x30</span><span class="p">,</span> <span class="mh">0x01</span> <span class="p">},</span>
+        <span class="p">{</span> <span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x30</span><span class="p">,</span> <span class="mh">0x01</span> <span class="p">},</span> <span class="p">{</span> <span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x30</span><span class="p">,</span> <span class="mh">0x01</span> <span class="p">},</span>
+        <span class="p">{</span> <span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x30</span><span class="p">,</span> <span class="mh">0x01</span> <span class="p">},</span> <span class="p">{</span> <span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x30</span><span class="p">,</span> <span class="mh">0x01</span> <span class="p">},</span>
+        <span class="p">{</span> <span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x30</span><span class="p">,</span> <span class="mh">0x01</span> <span class="p">},</span> <span class="p">{</span> <span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x30</span><span class="p">,</span> <span class="mh">0x01</span> <span class="p">},</span>
+        <span class="p">{</span> <span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x31</span><span class="p">,</span> <span class="mh">0x01</span> <span class="p">},</span> <span class="p">{</span> <span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x31</span><span class="p">,</span> <span class="mh">0x01</span> <span class="p">},</span>
+        <span class="p">{</span> <span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x31</span><span class="p">,</span> <span class="mh">0x01</span> <span class="p">},</span> <span class="p">{</span> <span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x31</span><span class="p">,</span> <span class="mh">0x01</span> <span class="p">},</span>
+        <span class="p">{</span> <span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x31</span><span class="p">,</span> <span class="mh">0x01</span> <span class="p">},</span> <span class="p">{</span> <span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x31</span><span class="p">,</span> <span class="mh">0x01</span> <span class="p">},</span>
+        <span class="p">{</span> <span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x31</span><span class="p">,</span> <span class="mh">0x01</span> <span class="p">},</span> <span class="p">{</span> <span class="mh">0x00</span><span class="p">,</span> <span class="mh">0x31</span><span class="p">,</span> <span class="mh">0x01</span> <span class="p">},</span>
+    <span class="p">},</span>
+</pre></div>
+</td></tr></table></div>
+</div></blockquote>
+</div>
+<div class="section" id="id7">
+<h2>解码<a class="headerlink" href="#id7" title="Permalink to this headline">¶</a></h2>
+<p>有了解码状态表后，就可以依据该表来进行解码了。</p>
+<blockquote>
+<div><div class="highlight-c"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30</pre></div></td><td class="code"><div class="highlight"><pre><span class="kt">int</span> <span class="nf">huff_decode</span><span class="p">(</span><span class="kt">char</span> <span class="o">*</span><span class="n">dst</span><span class="p">,</span> <span class="kt">int</span> <span class="n">cap</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">src</span><span class="p">,</span> <span class="kt">int</span> <span class="n">src_len</span><span class="p">)</span> <span class="p">{</span>
+    <span class="n">huff_decode_state_t</span> <span class="o">*</span><span class="n">state</span><span class="p">;</span>
+    <span class="kt">int</span> <span class="n">cur</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="kt">int</span> <span class="n">bits</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="kt">int</span> <span class="n">src_bits</span> <span class="o">=</span> <span class="n">src_len</span> <span class="o">*</span> <span class="mi">8</span><span class="p">;</span>
+    <span class="kt">int</span> <span class="n">len</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="kt">unsigned</span> <span class="kt">char</span> <span class="n">c</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="k">do</span> <span class="p">{</span>
+        <span class="kt">int</span> <span class="n">idx</span> <span class="o">=</span> <span class="n">bits</span> <span class="o">/</span> <span class="mi">8</span><span class="p">;</span>
+        <span class="kt">int</span> <span class="n">off</span> <span class="o">=</span> <span class="n">bits</span> <span class="o">%</span> <span class="mi">8</span><span class="p">;</span>
+        <span class="n">c</span> <span class="o">=</span> <span class="n">src</span><span class="p">[</span><span class="n">idx</span><span class="p">];</span>
+        <span class="n">c</span> <span class="o">&lt;&lt;=</span> <span class="n">off</span><span class="p">;</span>
+        <span class="n">c</span> <span class="o">&gt;&gt;=</span> <span class="mi">4</span><span class="p">;</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">off</span> <span class="o">&gt;</span> <span class="mi">4</span><span class="p">)</span> <span class="p">{</span>
+            <span class="n">c</span> <span class="o">|=</span> <span class="p">(</span><span class="kt">unsigned</span> <span class="kt">char</span><span class="p">)</span><span class="n">src</span><span class="p">[</span><span class="n">idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span> <span class="o">&gt;&gt;</span> <span class="p">(</span><span class="mi">8</span> <span class="o">-</span> <span class="n">off</span> <span class="o">%</span> <span class="mi">4</span><span class="p">);</span>
+        <span class="p">}</span>
+        <span class="n">bits</span> <span class="o">+=</span> <span class="mi">4</span><span class="p">;</span>
+        <span class="n">state</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">decode_state</span><span class="p">[</span><span class="n">cur</span><span class="p">][</span><span class="n">c</span><span class="p">];</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">state</span><span class="o">-&gt;</span><span class="n">ending</span><span class="p">)</span> <span class="p">{</span>
+            <span class="n">dst</span><span class="p">[</span><span class="n">len</span><span class="o">++</span><span class="p">]</span> <span class="o">=</span> <span class="n">state</span><span class="o">-&gt;</span><span class="n">sym</span><span class="p">;</span>
+            <span class="n">cur</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">huff_sym</span><span class="p">[</span><span class="n">state</span><span class="o">-&gt;</span><span class="n">sym</span><span class="p">].</span><span class="n">bits</span> <span class="o">%</span> <span class="mi">4</span><span class="p">)</span>
+                <span class="n">bits</span> <span class="o">-=</span> <span class="mi">4</span> <span class="o">-</span> <span class="n">huff_sym</span><span class="p">[</span><span class="n">state</span><span class="o">-&gt;</span><span class="n">sym</span><span class="p">].</span><span class="n">bits</span> <span class="o">%</span> <span class="mi">4</span><span class="p">;</span>
+        <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+            <span class="n">cur</span> <span class="o">=</span> <span class="n">state</span><span class="o">-&gt;</span><span class="n">next</span><span class="p">;</span>
+        <span class="p">}</span>
+    <span class="p">}</span> <span class="k">while</span> <span class="p">(</span><span class="n">bits</span> <span class="o">+</span> <span class="mi">4</span> <span class="o">&lt;=</span> <span class="n">src_bits</span> <span class="o">&amp;&amp;</span> <span class="n">len</span> <span class="o">&lt;</span> <span class="n">cap</span><span class="p">);</span>
+    <span class="n">dst</span><span class="p">[</span><span class="n">len</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="k">return</span> <span class="n">len</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</td></tr></table></div>
+</div></blockquote>
+<p>解码代码中需要仔细根据已解码的位长来计算待解码的数组索引和位索引。</p>
+</div>
+<div class="section" id="id8">
+<h2>编码<a class="headerlink" href="#id8" title="Permalink to this headline">¶</a></h2>
+<p>编码比较简单，计算好已编码的位长，来确定写入的数组索引和位偏移。最后不足8位的填充
+<code class="docutils literal"><span class="pre">EOS</span></code>.</p>
+<blockquote>
+<div><div class="highlight-c"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 1
+ 2
+ 3
+ 4
+ 5
+ 6
+ 7
+ 8
+ 9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
+20
+21
+22
+23
+24
+25
+26
+27
+28
+29
+30
+31
+32
+33
+34
+35
+36
+37
+38
+39
+40
+41
+42
+43
+44
+45
+46
+47
+48
+49
+50
+51
+52
+53
+54</pre></div></td><td class="code"><div class="highlight"><pre><span class="kt">int</span> <span class="nf">huff_encode</span><span class="p">(</span><span class="kt">char</span> <span class="o">*</span><span class="n">dst</span><span class="p">,</span> <span class="kt">int</span> <span class="n">cap</span><span class="p">,</span> <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="n">src</span><span class="p">,</span> <span class="kt">int</span> <span class="n">src_len</span><span class="p">)</span> <span class="p">{</span>
+    <span class="kt">int</span> <span class="n">i</span><span class="p">,</span> <span class="n">bits</span><span class="p">,</span> <span class="n">off</span><span class="p">,</span> <span class="n">idx</span><span class="p">,</span> <span class="n">remain</span><span class="p">;</span>
+    <span class="kt">unsigned</span> <span class="kt">int</span> <span class="n">code</span><span class="p">;</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">src_len</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">src_len</span> <span class="o">=</span> <span class="n">strlen</span><span class="p">(</span><span class="n">src</span><span class="p">);</span>
+    <span class="n">bits</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+    <span class="k">for</span> <span class="p">(</span><span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">src_len</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">huff_sym_t</span> <span class="o">*</span><span class="n">sym</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">huff_sym</span><span class="p">[(</span><span class="kt">unsigned</span> <span class="kt">char</span><span class="p">)</span><span class="n">src</span><span class="p">[</span><span class="n">i</span><span class="p">]];</span>
+        <span class="n">code</span> <span class="o">=</span> <span class="n">sym</span><span class="o">-&gt;</span><span class="n">code</span><span class="p">;</span>
+        <span class="n">remain</span> <span class="o">=</span> <span class="n">sym</span><span class="o">-&gt;</span><span class="n">bits</span><span class="p">;</span>
+        <span class="n">idx</span> <span class="o">=</span> <span class="n">bits</span> <span class="o">/</span> <span class="mi">8</span><span class="p">;</span>
+        <span class="n">off</span> <span class="o">=</span> <span class="n">bits</span> <span class="o">%</span> <span class="mi">8</span><span class="p">;</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">off</span><span class="p">)</span> <span class="p">{</span>
+            <span class="k">if</span> <span class="p">(</span><span class="mi">8</span> <span class="o">-</span> <span class="n">off</span> <span class="o">&gt;=</span> <span class="n">remain</span><span class="p">)</span> <span class="p">{</span>
+                <span class="n">dst</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">|=</span> <span class="n">code</span> <span class="o">&lt;&lt;</span> <span class="p">(</span><span class="mi">8</span> <span class="o">-</span> <span class="n">remain</span> <span class="o">-</span> <span class="n">off</span><span class="p">);</span>
+                <span class="n">bits</span> <span class="o">+=</span> <span class="n">remain</span><span class="p">;</span>
+                <span class="n">remain</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+            <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+                <span class="n">dst</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">|=</span> <span class="n">code</span> <span class="o">&gt;&gt;</span> <span class="p">(</span><span class="n">remain</span> <span class="o">-</span> <span class="p">(</span><span class="mi">8</span> <span class="o">-</span> <span class="n">off</span><span class="p">));</span>
+                <span class="n">bits</span> <span class="o">+=</span> <span class="mi">8</span> <span class="o">-</span> <span class="n">off</span><span class="p">;</span>
+                <span class="n">remain</span> <span class="o">-=</span> <span class="mi">8</span> <span class="o">-</span> <span class="n">off</span><span class="p">;</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">remain</span><span class="p">)</span> <span class="p">{</span>
+            <span class="n">assert</span><span class="p">(</span><span class="n">bits</span> <span class="o">%</span> <span class="mi">8</span> <span class="o">==</span> <span class="mi">0</span><span class="p">);</span>
+            <span class="k">for</span> <span class="p">(;</span> <span class="n">remain</span> <span class="o">&gt;=</span> <span class="mi">8</span><span class="p">;</span> <span class="n">remain</span> <span class="o">-=</span> <span class="mi">8</span><span class="p">)</span> <span class="p">{</span>
+                <span class="n">code</span> <span class="o">=</span> <span class="n">sym</span><span class="o">-&gt;</span><span class="n">code</span><span class="p">;</span>
+                <span class="n">idx</span> <span class="o">=</span> <span class="n">bits</span> <span class="o">/</span> <span class="mi">8</span><span class="p">;</span>
+                <span class="n">code</span> <span class="o">&lt;&lt;=</span> <span class="mi">32</span> <span class="o">-</span> <span class="n">remain</span><span class="p">;</span>
+                <span class="n">code</span> <span class="o">&gt;&gt;=</span> <span class="mi">24</span><span class="p">;</span>
+                <span class="n">dst</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="kt">unsigned</span> <span class="kt">char</span><span class="p">)</span><span class="n">code</span><span class="p">;</span>
+                <span class="n">bits</span> <span class="o">+=</span> <span class="mi">8</span><span class="p">;</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">remain</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+            <span class="n">code</span> <span class="o">=</span> <span class="n">sym</span><span class="o">-&gt;</span><span class="n">code</span><span class="p">;</span>
+            <span class="n">idx</span> <span class="o">=</span> <span class="n">bits</span> <span class="o">/</span> <span class="mi">8</span><span class="p">;</span>
+            <span class="n">code</span> <span class="o">&lt;&lt;=</span> <span class="mi">8</span> <span class="o">-</span> <span class="n">remain</span><span class="p">;</span>
+            <span class="n">dst</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="kt">unsigned</span> <span class="kt">char</span><span class="p">)</span><span class="n">code</span><span class="p">;</span>
+            <span class="n">bits</span> <span class="o">+=</span> <span class="n">remain</span><span class="p">;</span>
+        <span class="p">}</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">bits</span> <span class="o">&gt;</span> <span class="n">cap</span> <span class="o">*</span> <span class="mi">8</span><span class="p">)</span> <span class="p">{</span>
+            <span class="k">return</span> <span class="n">cap</span><span class="p">;</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+    <span class="k">if</span> <span class="p">(</span><span class="n">bits</span> <span class="o">%</span> <span class="mi">8</span><span class="p">)</span> <span class="p">{</span>
+        <span class="n">idx</span> <span class="o">=</span> <span class="n">bits</span> <span class="o">/</span> <span class="mi">8</span><span class="p">;</span>
+        <span class="n">off</span> <span class="o">=</span> <span class="n">bits</span> <span class="o">%</span> <span class="mi">8</span><span class="p">;</span>
+        <span class="n">dst</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">|=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">&lt;&lt;</span> <span class="p">(</span><span class="mi">8</span> <span class="o">-</span> <span class="n">off</span><span class="p">))</span> <span class="o">-</span> <span class="mi">1</span><span class="p">;</span>
+        <span class="n">bits</span> <span class="o">+=</span> <span class="mi">8</span> <span class="o">-</span> <span class="n">off</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="n">assert</span><span class="p">(</span><span class="n">bits</span> <span class="o">%</span> <span class="mi">8</span> <span class="o">==</span> <span class="mi">0</span><span class="p">);</span>
+    <span class="k">return</span> <span class="n">bits</span> <span class="o">/</span> <span class="mi">8</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</td></tr></table></div>
+</div></blockquote>
+<p>编码中所用到的符号表是在<code class="docutils literal"><span class="pre">HPACK</span></code>中定义的，这里不在列出了。</p>
+<table class="docutils footnote" frame="void" id="source" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label"><a class="fn-backref" href="#id6">[1]</a></td><td>本文源代码: <a class="reference external" href="../_static/hpack_huffman.c">../_static/hpack_huffman.c</a></td></tr>
+</tbody>
+</table>
+<table class="docutils footnote" frame="void" id="http2-0" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label"><a class="fn-backref" href="#id1">[2]</a></td><td>HTTP2.0 RFC: <a class="reference external" href="https://httpwg.github.io/specs/rfc7540.html">https://httpwg.github.io/specs/rfc7540.html</a></td></tr>
+</tbody>
+</table>
+<table class="docutils footnote" frame="void" id="id9" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label"><a class="fn-backref" href="#id2">[3]</a></td><td>HPACK RFC: <a class="reference external" href="https://httpwg.github.io/specs/rfc7541.html">https://httpwg.github.io/specs/rfc7541.html</a></td></tr>
+</tbody>
+</table>
+<table class="docutils footnote" frame="void" id="huffman" rules="none">
+<colgroup><col class="label" /><col /></colgroup>
+<tbody valign="top">
+<tr><td class="label"><a class="fn-backref" href="#id3">[4]</a></td><td>huffman编码: <a class="reference external" href="https://en.wikipedia.org/wiki/Huffman_coding">https://en.wikipedia.org/wiki/Huffman_coding</a></td></tr>
+</tbody>
+</table>
+</div>
+</div>
+
+  <div class="section">
+  
+    
+
+
+<div class="section">
+  <span style="float: left;">
+  
+  Previous: 
+  <a href="../beautiful-native-libraries/">
+    
+    漂亮的原生库
+  </a>
+  
+  </span>
+  <span>&nbsp;</span>
+  <span style="float: right;">
+  
+</div>
+
+  
+  
+  </div>
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../">Xsoda's Blog</a></h1>
+
+
+
+<p class="blurb">Thought & Learn & Remember</p>
+
+
+
+<p>
+<iframe src="https://ghbtns.com/github-btn.html?user=Xsoda&repo=myblog&type=watch&count=true&size=large"
+  allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
+</p>
+
+
+
+
+    
+
+<p>
+<a href="https://travis-ci.org/Xsoda/myblog">
+    <img
+        alt="https://secure.travis-ci.org/Xsoda/myblog.png?branch=master"
+        src="https://secure.travis-ci.org/Xsoda/myblog.png?branch=master"
+    />
+</a>
+</p>
+
+
+
+  
+  
+  <h2>
+  
+  
+    Dec 26, 2015
+  
+  </h2>
+
+  <ul>
+    
+
+  
+  <li>Author:
+    
+      
+      <a href="../blog/author/xsoda/">Xsoda</a>
+      
+    </li>
+  
+
+  
+
+  
+
+  
+
+  
+  <li>Tags:
+      
+    
+      
+      <a href="../blog/tag/http20/">http2.0</a>,
+      
+    
+      
+      <a href="../blog/tag/algorithm/">algorithm</a>,
+      
+    
+      
+      <a href="../blog/tag/huffman/">huffman</a>
+      
+    </li>
+  
+  
+  </ul>
+
+
+<h3>Navigation</h3>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../about/">About Xsoda</a></li>
+</ul>
+
+
+  <h3><a href="../blog/">Recent Posts</a></h3>
+  <ul>
+    
+    
+      <li><a href="../beautiful-native-libraries/">Nov 28 - 漂亮的原生库</a></li>
+    
+      <li><a href="../binary-tree-iterator-non-recursion/">Nov 16 - 关于二叉树遍历的一道思考题</a></li>
+    
+      <li><a href="../first-post/">Oct 30 - First Post</a></li>
+    
+  </ul>
+
+  <h3><a href="../blog/tag/">Tags</a></h3>
+  <style type="text/css">
+    ul.ablog-cloud {list-style: none; overflow: auto;}
+    ul.ablog-cloud li {float: left; height: 20pt; line-height: 18pt; margin-right: 5px;}
+    ul.ablog-cloud a {text-decoration: none; vertical-align: middle;}
+    li.ablog-cloud-1{font-size: 80%;}
+    li.ablog-cloud-2{font-size: 95%;}
+    li.ablog-cloud-3{font-size: 110%;}
+    li.ablog-cloud-4{font-size: 125%;}
+    li.ablog-cloud-5{font-size: 140%;}
+  </style>
+  <ul class="ablog-cloud">
+    
+      
+      <li class="ablog-cloud ablog-cloud-5">
+        <a href="../blog/tag/algorithm/">algorithm</a></li>
+      
+    
+      
+      <li class="ablog-cloud ablog-cloud-1">
+        <a href="../blog/tag/atag/">atag</a></li>
+      
+    
+      
+      <li class="ablog-cloud ablog-cloud-1">
+        <a href="../blog/tag/binary-tree/">binary-tree</a></li>
+      
+    
+      
+      <li class="ablog-cloud ablog-cloud-1">
+        <a href="../blog/tag/http20/">http2.0</a></li>
+      
+    
+      
+      <li class="ablog-cloud ablog-cloud-1">
+        <a href="../blog/tag/huffman/">huffman</a></li>
+      
+    
+      
+      <li class="ablog-cloud ablog-cloud-1">
+        <a href="../blog/tag/native-library/">native-library</a></li>
+      
+    
+      
+      <li class="ablog-cloud ablog-cloud-1">
+        <a href="../blog/tag/programming/">programming</a></li>
+      
+    
+      
+      <li class="ablog-cloud ablog-cloud-1">
+        <a href="../blog/tag/translation/">translation</a></li>
+      
+    
+  </ul>
+
+  <h3><a href="../blog/archive/">Archives</a></h3>
+  <ul>
+  
+    
+    <li><a href="../blog/2015/">2015 (4)</a></li>
+    
+  
+  </ul>
+
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search/" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2015, Xsoda.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3.5</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.7</a>
+      
+      |
+      <a href="../_sources/hpack-huffman-coding.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

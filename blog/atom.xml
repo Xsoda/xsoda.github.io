@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title type="text">Blog</title>
+  <id>http://xsoda.github.io/blog/atom.xml</id>
+  <updated>2015-12-26T00:00:00Z</updated>
+  <link href="http://xsoda.github.io/" />
+  <link href="http://xsoda.github.io/blog/atom.xml" rel="self" />
+  <generator uri="http://ablog.readthedocs.org" version="0.8.2">ABlog</generator>
+  <entry xml:base="http://xsoda.github.io/blog/atom.xml">
+    <title type="text">HPACK中的霍夫曼编码</title>
+    <id>http://xsoda.github.io/hpack-huffman-coding/</id>
+    <updated>2015-12-26T00:00:00Z</updated>
+    <published>2015-12-26T00:00:00Z</published>
+    <link href="http://xsoda.github.io/hpack-huffman-coding/" />
+    <author>
+      <name>Xsoda</name>
+    </author>
+    <content type="html">&lt;p&gt;&lt;code class=&quot;docutils literal&quot;&gt;&lt;span class=&quot;pre&quot;&gt;HTTP2.0&lt;/span&gt;&lt;/code&gt;&lt;a class=&quot;footnote-reference&quot; href=&quot;#http2-0&quot; id=&quot;id1&quot;&gt;[2]&lt;/a&gt;中头部采用了二进制格式，具体编码在&lt;code class=&quot;docutils literal&quot;&gt;&lt;span class=&quot;pre&quot;&gt;HPACK&lt;/span&gt;&lt;/code&gt;&lt;a class=&quot;footnote-reference&quot; href=&quot;#id9&quot; id=&quot;id2&quot;&gt;[3]&lt;/a&gt;也已经详细解释了。
+&lt;code class=&quot;docutils literal&quot;&gt;&lt;span class=&quot;pre&quot;&gt;HPACK&lt;/span&gt;&lt;/code&gt;中对于字符串使用了霍夫曼编码&lt;a class=&quot;footnote-reference&quot; href=&quot;#huffman&quot; id=&quot;id3&quot;&gt;[4]&lt;/a&gt;来让传输更有效率，但是对于霍夫曼的解码过程一直没想
+到如何仅仅使用查表的方法来进行。在看过一些论文和博客之后勉强想到了一个简单的可能不是很有效率的查表办法。&lt;/p&gt;
+</content>
+  </entry>
+  <entry xml:base="http://xsoda.github.io/blog/atom.xml">
+    <title type="text">漂亮的原生库</title>
+    <id>http://xsoda.github.io/beautiful-native-libraries/</id>
+    <updated>2015-11-28T00:00:00Z</updated>
+    <published>2015-11-28T00:00:00Z</published>
+    <link href="http://xsoda.github.io/beautiful-native-libraries/" />
+    <author>
+      <name>Xsoda</name>
+    </author>
+    <content type="html">&lt;p&gt;本文翻译自：&lt;a class=&quot;reference external&quot; href=&quot;http://lucumr.pocoo.org/2013/8/18/beautiful-native-libraries/&quot;&gt;http://lucumr.pocoo.org/2013/8/18/beautiful-native-libraries/&lt;/a&gt;&lt;/p&gt;
+</content>
+  </entry>
+  <entry xml:base="http://xsoda.github.io/blog/atom.xml">
+    <title type="text">关于二叉树遍历的一道思考题</title>
+    <id>http://xsoda.github.io/binary-tree-iterator-non-recursion/</id>
+    <updated>2015-11-16T00:00:00Z</updated>
+    <published>2015-11-16T00:00:00Z</published>
+    <link href="http://xsoda.github.io/binary-tree-iterator-non-recursion/" />
+    <author>
+      <name>Xsoda</name>
+    </author>
+    <content type="html">&lt;p&gt;偶然在网上看到一道关于二叉树的面试题目, 就尝试着做了一下. 题目如下:
+给出一二叉树, 判断从顶到底段数据之和是否与目标数字相等.&lt;/p&gt;
+</content>
+  </entry>
+  <entry xml:base="http://xsoda.github.io/blog/atom.xml">
+    <title type="text">First Post</title>
+    <id>http://xsoda.github.io/first-post/</id>
+    <updated>2015-10-30T00:00:00Z</updated>
+    <published>2015-10-30T00:00:00Z</published>
+    <link href="http://xsoda.github.io/first-post/" />
+    <author>
+      <name>Xsoda</name>
+    </author>
+    <content type="html">&lt;p&gt;World, hello again! This very first paragraph of the post will be used
+as excerpt in archives and feeds. Find out how to control how much is shown
+in &lt;a class=&quot;reference external&quot; href=&quot;http://ablog.readthedocs.org/manual/post-excerpts-and-images/&quot;&gt;Post Excerpts and Images&lt;/a&gt;. Remember
+that you can refer to posts by file name, e.g. &lt;code class=&quot;docutils literal&quot;&gt;&lt;span class=&quot;pre&quot;&gt;:ref:`first-post`&lt;/span&gt;&lt;/code&gt; results
+in &lt;a class=&quot;reference internal&quot; href=&quot;../first-post/#first-post&quot;&gt;&lt;span&gt;First Post&lt;/span&gt;&lt;/a&gt;. Find out more at &lt;a class=&quot;reference external&quot; href=&quot;http://ablog.readthedocs.org/manual/cross-referencing-blog-pages/&quot;&gt;Cross-Referencing Blog Pages&lt;/a&gt;.&lt;/p&gt;
+</content>
+  </entry>
+</feed>
