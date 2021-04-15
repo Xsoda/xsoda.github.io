@@ -9,7 +9,6 @@
     <title>关于二叉树遍历的一道思考题 &#8212; Xsoda&#39;s Blog  documentation</title>
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
     <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
-    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
     <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
     <script src="../_static/jquery.js"></script>
     <script src="../_static/underscore.js"></script>
@@ -70,24 +69,30 @@
 <p>偶然在网上看到一道关于二叉树的面试题目, 就尝试着做了一下. 题目如下:
 给出一二叉树, 判断从顶到底段数据之和是否与目标数字相等.</p>
 <p>示例:</p>
-<div class="graphviz"><img src="../_images/graphviz-5cd392cab3d86f77af87cf598e56b3dd5e094009.png" alt="digraph G {
-   graph [ordering=&quot;out&quot;];
-   node [shape=circle];
-   5 -&gt; 4;
-   5 -&gt; 8;
-   4 -&gt; 11;
-   null0 [shape=point];
-   4 -&gt; null0;
-   11 -&gt; 7;
-   11 -&gt; 2;
-   8 -&gt; 13;
-   node4 [label=&quot;4&quot;];
-   8 -&gt; node4;
-   null1 [shape=point];
-   node4 -&gt; null1;
-   node4 -&gt; 1;
-}" class="graphviz" /></div>
-<p>返回<code class="docutils literal notranslate"><span class="pre">1</span></code>, 表示可以找到一个叶子节点并且从根节点到此节点的值的和等于<code class="docutils literal notranslate"><span class="pre">22</span></code>.</p>
+<script>mermaid.initialize({startOnLoad:true});</script><div class="mermaid">
+            graph TB
+  null_0((NULL))
+  null_1((NULL))
+  1((1))
+  2((2))
+  4((4))
+  node_4((4))
+  5((5))
+  7((7))
+  8((8))
+  11((11))
+  13((13))
+  5 --&gt; 4
+  5 --&gt; 8
+  4 --&gt; 11
+  4 -.-&gt; null_0
+  11 --&gt; 7
+  11 --&gt; 2
+  8 --&gt; 13
+  8 --&gt; node_4
+  node_4 -.-&gt; null_1
+  node_4 --&gt; 1
+        </div><p>返回<code class="docutils literal notranslate"><span class="pre">1</span></code>, 表示可以找到一个叶子节点并且从根节点到此节点的值的和等于<code class="docutils literal notranslate"><span class="pre">22</span></code>.</p>
 <p>需要我们来判断根节点到叶节点的路径中, 经过的节点之和是否有与所给定的数字<code class="docutils literal notranslate"><span class="pre">22</span></code>相等的路径.
 只能通过遍历二叉树来实现, 遍历二叉树的三种次序也只能使用先序遍历, 中序和后序都不便于处理类似路径问题.</p>
 <p>在二叉树的遍历算法中常用的有递归算法和带有栈的非递归算法, 这里使用带有父节点的非递归算法.
