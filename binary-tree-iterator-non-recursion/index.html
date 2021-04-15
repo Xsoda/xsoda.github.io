@@ -1,63 +1,76 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 
+<!DOCTYPE html>
 
-<html xmlns="http://www.w3.org/1999/xhtml">
+<html>
   <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    
-    <title>关于二叉树遍历的一道思考题 &mdash; Xsoda&#39;s Blog  documentation</title>
-    
-    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17: http://docutils.sourceforge.net/" />
+
+    <title>关于二叉树遍历的一道思考题 &#8212; Xsoda&#39;s Blog  documentation</title>
     <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
-    
-    <script type="text/javascript">
-      var DOCUMENTATION_OPTIONS = {
-        URL_ROOT:    '../',
-        VERSION:     '',
-        COLLAPSE_INDEX: false,
-        FILE_SUFFIX: '',
-        HAS_SOURCE:  true
-      };
-    </script>
-    <script type="text/javascript" src="../_static/jquery.js"></script>
-    <script type="text/javascript" src="../_static/underscore.js"></script>
-    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="stylesheet" href="../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
+    <script id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/js/mermaid.js"></script>
     <link rel="author" title="About these documents" href="../about/" />
-    <link rel="top" title="Xsoda&#39;s Blog  documentation" href="../" />
-  
+    <link rel="index" title="Index" href="../genindex/" />
+    <link rel="search" title="Search" href="../search/" /> 
    
+  <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+  
   
   <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+ 
+<link
+  rel="alternate"
+  type="application/atom+xml"
+  href="../blog/atom.xml"
+  title="Blog"
+/>
+ 
+<style type="text/css">
+  ul.ablog-archive {
+    list-style: none;
+    overflow: auto;
+    margin-left: 0px;
+  }
+  ul.ablog-archive li {
+    float: left;
+    margin-right: 5px;
+    font-size: 80%;
+  }
+  ul.postlist a {
+    font-style: italic;
+  }
+  ul.postlist-style-disc {
+    list-style-type: disc;
+  }
+  ul.postlist-style-none {
+    list-style-type: none;
+  }
+  ul.postlist-style-circle {
+    list-style-type: circle;
+  }
+</style>
 
+  </head><body>
   
-  <link rel="alternate" type="application/atom+xml"  href="../blog/atom.xml" title="Blog">
-  
-  
-  <style type="text/css">
-    ul.ablog-archive {list-style: none; overflow: auto; margin-left: 0px}
-    ul.ablog-archive li {float: left; margin-right: 5px; font-size: 80%}
-    ul.postlist a {font-style: italic;}
-    ul.postlist-style-disc {list-style-type: disc;}
-    ul.postlist-style-none {list-style-type: none;}
-    ul.postlist-style-circle {list-style-type: circle;}
-  </style>
-
-  </head>
-  <body role="document">  
 
     <div class="document">
       <div class="documentwrapper">
         <div class="bodywrapper">
+          
+
           <div class="body" role="main">
-            
-  <div class="section" id="id1">
+             <section id="id1">
 <h1>关于二叉树遍历的一道思考题<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h1>
 <p>偶然在网上看到一道关于二叉树的面试题目, 就尝试着做了一下. 题目如下:
 给出一二叉树, 判断从顶到底段数据之和是否与目标数字相等.</p>
 <p>示例:</p>
-<p class="graphviz">
-<img src="../_images/graphviz-d7c479fa1ef43307fd54e20b9f43f3bfe2baeea4.png" alt="digraph G {
+<div class="graphviz"><img src="../_images/graphviz-5cd392cab3d86f77af87cf598e56b3dd5e094009.png" alt="digraph G {
    graph [ordering=&quot;out&quot;];
    node [shape=circle];
    5 -&gt; 4;
@@ -73,50 +86,49 @@
    null1 [shape=point];
    node4 -&gt; null1;
    node4 -&gt; 1;
-}" />
-</p>
-<p>返回<code class="docutils literal"><span class="pre">1</span></code>, 表示可以找到一个叶子节点并且从根节点到此节点的值的和等于<code class="docutils literal"><span class="pre">22</span></code>.</p>
-<p>需要我们来判断根节点到叶节点的路径中, 经过的节点之和是否有与所给定的数字<code class="docutils literal"><span class="pre">22</span></code>相等的路径.
+}" class="graphviz" /></div>
+<p>返回<code class="docutils literal notranslate"><span class="pre">1</span></code>, 表示可以找到一个叶子节点并且从根节点到此节点的值的和等于<code class="docutils literal notranslate"><span class="pre">22</span></code>.</p>
+<p>需要我们来判断根节点到叶节点的路径中, 经过的节点之和是否有与所给定的数字<code class="docutils literal notranslate"><span class="pre">22</span></code>相等的路径.
 只能通过遍历二叉树来实现, 遍历二叉树的三种次序也只能使用先序遍历, 中序和后序都不便于处理类似路径问题.</p>
 <p>在二叉树的遍历算法中常用的有递归算法和带有栈的非递归算法, 这里使用带有父节点的非递归算法.
 二叉树节点中引入父节点也是和栈一样在回溯时获取父节点, 保存路径, 二者本质无差别.</p>
 <p>先定义节点结构体:</p>
-<div class="highlight-c"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 5
- 6
- 7
- 8
- 9
-10</pre></div></td><td class="code"><div class="highlight"><pre><span class="k">typedef</span> <span class="k">struct</span> <span class="n">_node_s</span> <span class="p">{</span>
+<div class="highlight-c notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span class="normal"> 5</span>
+<span class="normal"> 6</span>
+<span class="normal"> 7</span>
+<span class="normal"> 8</span>
+<span class="normal"> 9</span>
+<span class="normal">10</span></pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="k">typedef</span> <span class="k">struct</span> <span class="nc">_node_s</span> <span class="p">{</span>
     <span class="kt">int</span> <span class="n">val</span><span class="p">;</span>
-    <span class="k">struct</span> <span class="n">_node_s</span> <span class="o">*</span><span class="n">parent</span><span class="p">;</span>
-    <span class="k">struct</span> <span class="n">_node_s</span> <span class="o">*</span><span class="n">left</span><span class="p">;</span>
-    <span class="k">struct</span> <span class="n">_node_s</span> <span class="o">*</span><span class="n">right</span><span class="p">;</span>
+    <span class="k">struct</span> <span class="nc">_node_s</span> <span class="o">*</span><span class="n">parent</span><span class="p">;</span>
+    <span class="k">struct</span> <span class="nc">_node_s</span> <span class="o">*</span><span class="n">left</span><span class="p">;</span>
+    <span class="k">struct</span> <span class="nc">_node_s</span> <span class="o">*</span><span class="n">right</span><span class="p">;</span>
 <span class="p">}</span> <span class="n">node_t</span><span class="p">;</span>
 </pre></div>
 </td></tr></table></div>
 <p>然后根据先序遍历的规则写出遍历器:</p>
-<div class="highlight-c"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>51
-52
-53
-54
-55
-56
-57
-58
-59
-60
-61
-62
-63
-64
-65
-66
-67
-68
-69
-70
-71
-72</pre></div></td><td class="code"><div class="highlight"><pre><span class="n">node_t</span> <span class="o">*</span><span class="nf">preorder_iterator</span><span class="p">(</span><span class="n">node_t</span> <span class="o">*</span><span class="n">node</span><span class="p">)</span> <span class="p">{</span>
+<div class="highlight-c notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span class="normal">51</span>
+<span class="normal">52</span>
+<span class="normal">53</span>
+<span class="normal">54</span>
+<span class="normal">55</span>
+<span class="normal">56</span>
+<span class="normal">57</span>
+<span class="normal">58</span>
+<span class="normal">59</span>
+<span class="normal">60</span>
+<span class="normal">61</span>
+<span class="normal">62</span>
+<span class="normal">63</span>
+<span class="normal">64</span>
+<span class="normal">65</span>
+<span class="normal">66</span>
+<span class="normal">67</span>
+<span class="normal">68</span>
+<span class="normal">69</span>
+<span class="normal">70</span>
+<span class="normal">71</span>
+<span class="normal">72</span></pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="n">node_t</span> <span class="o">*</span><span class="nf">preorder_iterator</span><span class="p">(</span><span class="n">node_t</span> <span class="o">*</span><span class="n">node</span><span class="p">)</span> <span class="p">{</span>
     <span class="k">if</span> <span class="p">(</span><span class="n">node</span> <span class="o">==</span> <span class="nb">NULL</span><span class="p">)</span>
         <span class="k">return</span> <span class="nb">NULL</span><span class="p">;</span>
 
@@ -142,15 +154,15 @@
 </td></tr></table></div>
 <p>60-69行为关键的回溯代码, 规则是当某一个父节点有右孩子且父节点不是从右孩子的路径回溯表明右孩子还没有遍历过, 则返回右孩子.
 例如图中节点7已经没有左孩子和右孩子了, 下一步应该是回溯到其父节点11, 再获取到节点2. 当遍历到节点1时,
-很明显已经没有节点可以遍历了, 往上回溯, 每个节点都是其父节点的右孩子, 已经遍历过了, 直至父节点为<code class="docutils literal"><span class="pre">NULL</span></code>, 遍历结束.</p>
-<p>构造二叉树的过程省略, 见源代码<a class="footnote-reference" href="#source" id="id2">[1]</a>. 使用如下的代码先输出先序遍历的结果来看看遍历的过程是否正确:</p>
-<div class="highlight-c"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>74
-75
-76
-77
-78
-79
-80</pre></div></td><td class="code"><div class="highlight"><pre><span class="kt">void</span> <span class="nf">preorder_printer</span><span class="p">(</span><span class="n">node_t</span> <span class="o">*</span><span class="n">root</span><span class="p">)</span> <span class="p">{</span>
+很明显已经没有节点可以遍历了, 往上回溯, 每个节点都是其父节点的右孩子, 已经遍历过了, 直至父节点为<code class="docutils literal notranslate"><span class="pre">NULL</span></code>, 遍历结束.</p>
+<p>构造二叉树的过程省略, 见源代码<a class="footnote-reference brackets" href="#source" id="id2">1</a>. 使用如下的代码先输出先序遍历的结果来看看遍历的过程是否正确:</p>
+<div class="highlight-c notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span class="normal">74</span>
+<span class="normal">75</span>
+<span class="normal">76</span>
+<span class="normal">77</span>
+<span class="normal">78</span>
+<span class="normal">79</span>
+<span class="normal">80</span></pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="kt">void</span> <span class="nf">preorder_printer</span><span class="p">(</span><span class="n">node_t</span> <span class="o">*</span><span class="n">root</span><span class="p">)</span> <span class="p">{</span>
     <span class="n">node_t</span> <span class="o">*</span><span class="n">node</span><span class="p">;</span>
     <span class="k">for</span> <span class="p">(</span><span class="n">node</span> <span class="o">=</span> <span class="n">root</span><span class="p">;</span> <span class="n">node</span> <span class="o">!=</span> <span class="nb">NULL</span><span class="p">;</span> <span class="n">node</span> <span class="o">=</span> <span class="n">preorder_iterator</span><span class="p">(</span><span class="n">node</span><span class="p">))</span> <span class="p">{</span>
         <span class="n">fprintf</span><span class="p">(</span><span class="n">stdout</span><span class="p">,</span> <span class="s">&quot;%d &quot;</span><span class="p">,</span> <span class="n">node</span><span class="o">-&gt;</span><span class="n">val</span><span class="p">);</span>
@@ -160,34 +172,34 @@
 </pre></div>
 </td></tr></table></div>
 <p>编译后输出如下:</p>
-<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="o">./</span><span class="n">a</span><span class="o">.</span><span class="n">exe</span>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="o">./</span><span class="n">a</span><span class="o">.</span><span class="n">exe</span>
 <span class="go">5 4 11 7 2 8 13 4 1</span>
 </pre></div>
 </div>
 <p>遍历的结果是正确的. 下面在遍历过程中加入计算过程:</p>
-<div class="highlight-c"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre> 82
- 83
- 84
- 85
- 86
- 87
- 88
- 89
- 90
- 91
- 92
- 93
- 94
- 95
- 96
- 97
- 98
- 99
-100
-101
-102
-103
-104</pre></div></td><td class="code"><div class="highlight"><pre><span class="n">node_t</span> <span class="o">*</span><span class="nf">preorder_calc</span><span class="p">(</span><span class="n">node_t</span> <span class="o">*</span><span class="n">node</span><span class="p">,</span> <span class="kt">int</span> <span class="o">*</span><span class="n">sum</span><span class="p">)</span> <span class="p">{</span>
+<div class="highlight-c notranslate"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span class="normal"> 82</span>
+<span class="normal"> 83</span>
+<span class="normal"> 84</span>
+<span class="normal"> 85</span>
+<span class="normal"> 86</span>
+<span class="normal"> 87</span>
+<span class="normal"> 88</span>
+<span class="normal"> 89</span>
+<span class="normal"> 90</span>
+<span class="normal"> 91</span>
+<span class="normal"> 92</span>
+<span class="normal"> 93</span>
+<span class="normal"> 94</span>
+<span class="normal"> 95</span>
+<span class="normal"> 96</span>
+<span class="normal"> 97</span>
+<span class="normal"> 98</span>
+<span class="normal"> 99</span>
+<span class="normal">100</span>
+<span class="normal">101</span>
+<span class="normal">102</span>
+<span class="normal">103</span>
+<span class="normal">104</span></pre></div></td><td class="code"><div class="highlight"><pre><span></span><span class="n">node_t</span> <span class="o">*</span><span class="nf">preorder_calc</span><span class="p">(</span><span class="n">node_t</span> <span class="o">*</span><span class="n">node</span><span class="p">,</span> <span class="kt">int</span> <span class="o">*</span><span class="n">sum</span><span class="p">)</span> <span class="p">{</span>
     <span class="k">if</span> <span class="p">(</span><span class="n">node</span> <span class="o">==</span> <span class="nb">NULL</span><span class="p">)</span>
         <span class="k">return</span> <span class="nb">NULL</span><span class="p">;</span>
 
@@ -213,7 +225,7 @@
 </pre></div>
 </td></tr></table></div>
 <p>基本过程与遍历完全相同, 只是在回溯过程中减去了节点的值, 在遍历时加上节点的值.</p>
-<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="n">gcc</span> <span class="o">-</span><span class="n">g</span> <span class="n">binary</span><span class="o">-</span><span class="n">tree</span><span class="o">-</span><span class="n">iterator</span><span class="o">-</span><span class="n">non</span><span class="o">-</span><span class="n">recursion</span><span class="o">.</span><span class="n">c</span>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">gcc</span> <span class="o">-</span><span class="n">g</span> <span class="n">binary</span><span class="o">-</span><span class="n">tree</span><span class="o">-</span><span class="n">iterator</span><span class="o">-</span><span class="n">non</span><span class="o">-</span><span class="n">recursion</span><span class="o">.</span><span class="n">c</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="o">./</span><span class="n">a</span><span class="o">.</span><span class="n">exe</span>
 <span class="go">5 4 11 7 2 8 13 4 1</span>
 <span class="go">leaf node: 7, path sum: 27</span>
@@ -223,46 +235,38 @@
 </pre></div>
 </div>
 <p>第一篇博客耽搁了这么久总算完成了.</p>
-<table class="docutils footnote" frame="void" id="source" rules="none">
-<colgroup><col class="label" /><col /></colgroup>
-<tbody valign="top">
-<tr><td class="label"><a class="fn-backref" href="#id2">[1]</a></td><td>本文测试代码: <a class="reference external" href="../_static/binary-tree-iterator-non-recursion.c">../_static/binary-tree-iterator-non-recursion.c</a></td></tr>
-</tbody>
-</table>
-</div>
-
-  <div class="section">
-  
-    
-
+<dl class="footnote brackets">
+<dt class="label" id="source"><span class="brackets"><a class="fn-backref" href="#id2">1</a></span></dt>
+<dd><p>本文测试代码: <a class="reference external" href="../_static/binary-tree-iterator-non-recursion.c">../_static/binary-tree-iterator-non-recursion.c</a></p>
+</dd>
+</dl>
+</section>
 
 <div class="section">
-  <span style="float: left;">
-  
-  Previous: 
-  <a href="../first-post/">
+     
+<div class="section">
+  <span style="float: left">
+     Previous:
     
-    First Post
-  </a>
-  
+    <a href="../first-post/">
+       First Post
+    </a>
+    
   </span>
   <span>&nbsp;</span>
-  <span style="float: right;">
-  
-  Next: 
-  <a href="../beautiful-native-libraries/">
-    漂亮的原生库
+  <span style="float: right">
+     Next: 
+    <a href="../beautiful-native-libraries/">
+      漂亮的原生库 
+    </a>
     
-  </a>
   </span>
+</div>
   
 </div>
 
-  
-  
-  </div>
-
           </div>
+          
         </div>
       </div>
       <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
@@ -275,166 +279,192 @@
 
 
 
+
 <p>
-<iframe src="https://ghbtns.com/github-btn.html?user=Xsoda&repo=myblog&type=watch&count=true&size=large"
+<iframe src="https://ghbtns.com/github-btn.html?user=Xsoda&repo=myblog&type=watch&count=true&size=large&v=2"
   allowtransparency="true" frameborder="0" scrolling="0" width="200px" height="35px"></iframe>
 </p>
 
 
 
 
+
     
 
 <p>
-<a href="https://travis-ci.org/Xsoda/myblog">
+<a class="badge" href="https://travis-ci.org/Xsoda/myblog">
     <img
-        alt="https://secure.travis-ci.org/Xsoda/myblog.png?branch=master"
-        src="https://secure.travis-ci.org/Xsoda/myblog.png?branch=master"
+        alt="https://secure.travis-ci.org/Xsoda/myblog.svg?branch=master"
+        src="https://secure.travis-ci.org/Xsoda/myblog.svg?branch=master"
     />
 </a>
 </p>
 
 
+  
+<h2>
+   
+  16 November 2015 
+</h2>
 
-  
-  
-  <h2>
-  
-  
-    Nov 16, 2015
-  
-  </h2>
-
-  <ul>
+<ul>
+   
+<li id="author">
+  <span
+    >Author:</span
+  >
+   
+  <a href="../blog/author/xsoda/">Xsoda</a>  
+</li>
     
-
-  
-  <li>Author:
-    
-      
-      <a href="../blog/author/xsoda/">Xsoda</a>
-      
-    </li>
-  
-
-  
-
-  
-
-  
-
-  
-  <li>Tags:
-      
-    
-      
-      <a href="../blog/tag/binary-tree/">binary-tree</a>,
-      
-    
-      
-      <a href="../blog/tag/algorithm/">algorithm</a>
-      
-    </li>
-  
-  
-  </ul>
-
-
+<li id="tags">
+  <span
+    >Tags: </span
+  >
+   
+  <a href="../blog/tag/binary-tree/">binary-tree</a>   
+  <a href="../blog/tag/algorithm/">algorithm</a>  
+</li>
+ 
+</ul>
 <h3>Navigation</h3>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../about/">About Xsoda</a></li>
 </ul>
 
 
-  <h3><a href="../blog/">Recent Posts</a></h3>
-  <ul>
-    
-    
-      <li><a href="../hpack-huffman-coding/">Dec 26 - HPACK中的霍夫曼编码</a></li>
-    
-      <li><a href="../beautiful-native-libraries/">Nov 28 - 漂亮的原生库</a></li>
-    
-      <li><a href="../first-post/">Oct 30 - First Post</a></li>
-    
-  </ul>
-
-  <h3><a href="../blog/tag/">Tags</a></h3>
-  <style type="text/css">
-    ul.ablog-cloud {list-style: none; overflow: auto;}
-    ul.ablog-cloud li {float: left; height: 20pt; line-height: 18pt; margin-right: 5px;}
-    ul.ablog-cloud a {text-decoration: none; vertical-align: middle;}
-    li.ablog-cloud-1{font-size: 80%;}
-    li.ablog-cloud-2{font-size: 95%;}
-    li.ablog-cloud-3{font-size: 110%;}
-    li.ablog-cloud-4{font-size: 125%;}
-    li.ablog-cloud-5{font-size: 140%;}
-  </style>
-  <ul class="ablog-cloud">
-    
-      
-      <li class="ablog-cloud ablog-cloud-5">
-        <a href="../blog/tag/algorithm/">algorithm</a></li>
-      
-    
-      
-      <li class="ablog-cloud ablog-cloud-1">
-        <a href="../blog/tag/atag/">atag</a></li>
-      
-    
-      
-      <li class="ablog-cloud ablog-cloud-1">
-        <a href="../blog/tag/binary-tree/">binary-tree</a></li>
-      
-    
-      
-      <li class="ablog-cloud ablog-cloud-1">
-        <a href="../blog/tag/http20/">http2.0</a></li>
-      
-    
-      
-      <li class="ablog-cloud ablog-cloud-1">
-        <a href="../blog/tag/huffman/">huffman</a></li>
-      
-    
-      
-      <li class="ablog-cloud ablog-cloud-1">
-        <a href="../blog/tag/native-library/">native-library</a></li>
-      
-    
-      
-      <li class="ablog-cloud ablog-cloud-1">
-        <a href="../blog/tag/programming/">programming</a></li>
-      
-    
-      
-      <li class="ablog-cloud ablog-cloud-1">
-        <a href="../blog/tag/translation/">translation</a></li>
-      
-    
-  </ul>
-
-  <h3><a href="../blog/archive/">Archives</a></h3>
-  <ul>
+<h3>
+  <a href="../blog/">Recent Posts</a>
+</h3>
+<ul>
+   
+  <li>
+    <a href="../sphinx-mermaid/"
+      >14 April - sphinx中使用mermaid画图</a
+    >
+  </li>
   
-    
-    <li><a href="../blog/2015/">2015 (4)</a></li>
-    
+  <li>
+    <a href="../hpack-huffman-coding/"
+      >26 December - HPACK中的霍夫曼编码</a
+    >
+  </li>
   
-  </ul>
+  <li>
+    <a href="../beautiful-native-libraries/"
+      >28 November - 漂亮的原生库</a
+    >
+  </li>
+  
+  <li>
+    <a href="../first-post/"
+      >30 October - First Post</a
+    >
+  </li>
+  
+</ul>
+
+<h3><a href="../blog/tag/">Tags</a></h3>
+<style type="text/css">
+  ul.ablog-cloud {
+    list-style: none;
+    overflow: auto;
+  }
+  ul.ablog-cloud li {
+    float: left;
+    height: 20pt;
+    line-height: 18pt;
+    margin-right: 5px;
+  }
+  ul.ablog-cloud a {
+    text-decoration: none;
+    vertical-align: middle;
+  }
+  li.ablog-cloud-1 {
+    font-size: 80%;
+  }
+  li.ablog-cloud-2 {
+    font-size: 95%;
+  }
+  li.ablog-cloud-3 {
+    font-size: 110%;
+  }
+  li.ablog-cloud-4 {
+    font-size: 125%;
+  }
+  li.ablog-cloud-5 {
+    font-size: 140%;
+  }
+</style>
+<ul class="ablog-cloud">
+   
+  <li class="ablog-cloud ablog-cloud-5">
+    <a href="../blog/tag/algorithm/">algorithm</a>
+  </li>
+    
+  <li class="ablog-cloud ablog-cloud-1">
+    <a href="../blog/tag/atag/">atag</a>
+  </li>
+    
+  <li class="ablog-cloud ablog-cloud-1">
+    <a href="../blog/tag/binary-tree/">binary-tree</a>
+  </li>
+    
+  <li class="ablog-cloud ablog-cloud-1">
+    <a href="../blog/tag/http20/">http2.0</a>
+  </li>
+    
+  <li class="ablog-cloud ablog-cloud-1">
+    <a href="../blog/tag/huffman/">huffman</a>
+  </li>
+    
+  <li class="ablog-cloud ablog-cloud-1">
+    <a href="../blog/tag/mermaidjs/">mermaidjs</a>
+  </li>
+    
+  <li class="ablog-cloud ablog-cloud-1">
+    <a href="../blog/tag/native-library/">native-library</a>
+  </li>
+    
+  <li class="ablog-cloud ablog-cloud-1">
+    <a href="../blog/tag/programming/">programming</a>
+  </li>
+    
+  <li class="ablog-cloud ablog-cloud-1">
+    <a href="../blog/tag/sphinx/">sphinx</a>
+  </li>
+    
+  <li class="ablog-cloud ablog-cloud-1">
+    <a href="../blog/tag/translation/">translation</a>
+  </li>
+   
+</ul>
+
+<h3>
+  <a href="../blog/archive/">Archives</a>
+</h3>
+<ul>
+   
+  <li>
+    <a href="../blog/2021/">2021 (1)</a>
+  </li>
+    
+  <li>
+    <a href="../blog/2015/">2015 (4)</a>
+  </li>
+   
+</ul>
 
 <div id="searchbox" style="display: none" role="search">
-  <h3>Quick search</h3>
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
     <form class="search" action="../search/" method="get">
-      <input type="text" name="q" />
+      <input type="text" name="q" aria-labelledby="searchlabel" />
       <input type="submit" value="Go" />
-      <input type="hidden" name="check_keywords" value="yes" />
-      <input type="hidden" name="area" value="default" />
     </form>
-    <p class="searchtip" style="font-size: 90%">
-    Enter search terms or a module, class or function name.
-    </p>
+    </div>
 </div>
-<script type="text/javascript">$('#searchbox').show(0);</script>
+<script>$('#searchbox').show(0);</script>
         </div>
       </div>
       <div class="clearer"></div>
@@ -443,11 +473,11 @@
       &copy;2015, Xsoda.
       
       |
-      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3.5</a>
-      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.7</a>
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 3.5.4</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
       
       |
-      <a href="../_sources/binary-tree-iterator-non-recursion.txt"
+      <a href="../_sources/binary-tree-iterator-non-recursion.rst.txt"
           rel="nofollow">Page source</a>
     </div>
 
