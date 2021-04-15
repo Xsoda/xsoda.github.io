@@ -2,7 +2,7 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
   <id>http://xsoda.github.io/</id>
   <title>Blog</title>
-  <updated>2021-04-15T07:46:34.437302+00:00</updated>
+  <updated>2021-04-15T07:51:43.986222+00:00</updated>
   <link href="http://xsoda.github.io/"/>
   <link href="http://xsoda.github.io/blog/atom.xml" rel="self"/>
   <generator uri="https://ablog.readthedocs.org/" version="0.10.17">ABlog</generator>
@@ -88,11 +88,11 @@ HPACK中对于字符串使用了霍夫曼编码4来让传输更有效率，但�
     <author>
       <name>Xsoda</name>
     </author>
-    <content type="html">&lt;p&gt;目前博客中的图片使用&lt;code class="docutils literal notranslate"&gt;&lt;span class="pre"&gt;graphviz&lt;/span&gt;&lt;/code&gt;生成, 当要绘制复杂图形时很复杂.
+    <content type="html">&lt;p&gt;目前博客中的图片使用&lt;code class="docutils literal notranslate"&gt;&lt;span class="pre"&gt;graphviz&lt;/span&gt;&lt;/code&gt;生成, 当要绘制复杂图形时很困难.
 相对使用&lt;code class="docutils literal notranslate"&gt;&lt;span class="pre"&gt;mermaid&lt;/span&gt;&lt;/code&gt;比较简单.&lt;/p&gt;
 </content>
     <link href="http://xsoda.github.io/sphinx-mermaid/" rel="alternate"/>
-    <summary>目前博客中的图片使用graphviz生成, 当要绘制复杂图形时很复杂.
+    <summary>目前博客中的图片使用graphviz生成, 当要绘制复杂图形时很困难.
 相对使用mermaid比较简单.</summary>
     <category term="sphinx" label="sphinx"/>
     <category term="mermaidjs" label="mermaidjs"/>
